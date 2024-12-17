@@ -120,6 +120,38 @@ const AbsenceScreen: React.FC = () => {
     }
   };
 
+  const handleCheckOut = async () => {
+    try {
+      setLoading(true);
+
+      const today = new Date().toISOString().split('T')[0];
+      const currentTime = new Date().toLocaleTimeString('en-GB', { hour12: false });
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error('You must be logged in.');
+
+      // Update the attendance record with the checkout time
+      const { data: updatedAttendance, error: updateError } = await supabase
+        .from('attendance')
+        .update({ check_out: currentTime })
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .select('check_out')
+        .single();
+
+      if (updateError) throw updateError;
+
+      Alert.alert('Success', 'Check-out successful!');
+      fetchAttendance();
+    } catch (error: any) {
+      console.error('Error during check-out:', error);
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Absensi</Text>
@@ -129,7 +161,9 @@ const AbsenceScreen: React.FC = () => {
       ) : attendance ? (
         <>
           <Text style={styles.text}>Check-in: {attendance.check_in || '-'}</Text>
+          <Text style={styles.text}>Check-out: {attendance.check_out || '-'}</Text>
           <Image source={{ uri: selfieUri || attendance.selfie_url }} style={styles.selfie} />
+          <Button title="Check-out" onPress={handleCheckOut} color="#e74c3c" />
         </>
       ) : (
         <Button title="Check-in dengan Selfie & Lokasi" onPress={handleCheckInWithSelfie} color="#27ae60" />

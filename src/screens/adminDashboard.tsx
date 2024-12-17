@@ -44,6 +44,7 @@ const AdminDashboard: React.FC = () => {
   const [activeView, setActiveView] = useState<"attendance" | "leave_requests">(
     "attendance"
   ); // Untuk memilih tampilan data
+  const [disableButtons, setDisableButtons] = useState<{ [key: number]: boolean }>({});
   const navigation = useNavigation<AdminDashboardNavigationProp>();
 
   const fetchUserNames = async (requests: { user_id: string }[]) => {
@@ -113,7 +114,7 @@ const AdminDashboard: React.FC = () => {
         </TouchableOpacity>
       ),
     });
-  }, [navigation])
+  }, [navigation]);
 
   const handleLogout = async () => {
     const result = await logoutUser();
@@ -121,6 +122,26 @@ const AdminDashboard: React.FC = () => {
       navigation.replace("Login");
     } else {
       Alert.alert("Error", result.message);
+    }
+  };
+
+  const handleApproveReject = async (id: number, status: string) => {
+    setDisableButtons((prev) => ({ ...prev, [id]: true }));
+    try {
+      const { error } = await supabase
+        .from("leave_requests")
+        .update({ status })
+        .eq("id", id);
+      
+      if (error) throw error;
+
+      Alert.alert("Sukses", `Permintaan cuti berhasil ${status}`);
+      fetchLeaveRequests(); // Refresh data setelah update
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", `Gagal ${status} permintaan cuti`);
+    } finally {
+      setDisableButtons((prev) => ({ ...prev, [id]: false }));
     }
   };
 
@@ -137,6 +158,20 @@ const AdminDashboard: React.FC = () => {
       <Text>End Date: {item.end_date}</Text>
       <Text>Reason: {item.reason}</Text>
       <Text>Status: {item.status}</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Button
+          title="Approve"
+          color="#2ecc71"
+          onPress={() => handleApproveReject(item.id, "approved")}
+          disabled={disableButtons[item.id]} // Menonaktifkan tombol
+        />
+        <Button
+          title="Reject"
+          color="#e74c3c"
+          onPress={() => handleApproveReject(item.id, "rejected")}
+          disabled={disableButtons[item.id]} // Menonaktifkan tombol
+        />
+      </View>
     </View>
   );
 
@@ -154,7 +189,7 @@ const AdminDashboard: React.FC = () => {
             setActiveView("attendance");
             fetchTodayAttendance();
           }}
-          color={activeView === "attendance" ? "blue" : "gray"}
+          color={activeView === "attendance" ? "#e74c3c" : "#e74c3c"}
         />
         <Button
           title="Lihat Leave Requests"
@@ -162,7 +197,7 @@ const AdminDashboard: React.FC = () => {
             setActiveView("leave_requests");
             fetchLeaveRequests();
           }}
-          color={activeView === "leave_requests" ? "blue" : "gray"}
+          color={activeView === "leave_requests" ? "#e74c3c" : "#e74c3c"}
         />
       </View>
 
@@ -174,14 +209,14 @@ const AdminDashboard: React.FC = () => {
           data={todayAttendance}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderAttendance}
-          ListEmptyComponent={<Text>Tidak ada absensi hari ini</Text>}
+          ListEmptyComponent={<Text style={styles.itemText}>Tidak ada absensi hari ini</Text>}
         />
       ) : (
         <FlatList
           data={leaveRequests}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderLeaveRequest}
-          ListEmptyComponent={<Text>Tidak ada leave requests</Text>}
+          ListEmptyComponent={<Text style={styles.itemText}>Tidak ada leave requests</Text>}
         />
       )}
     </View>
@@ -192,7 +227,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#2c3e50",
   },
   headerContainer: {
     flexDirection: "row",
@@ -203,6 +238,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 24,
     fontWeight: "bold",
+    color: '#fff'
   },
   buttonContainer: {
     flexDirection: "row",
@@ -219,6 +255,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 2,
+    color: '#ccc'
   },
   title: {
     fontSize: 18,
@@ -228,6 +265,7 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 16,
     marginBottom: 8,
+    color: '#fff'
   },
   headerButton: {
     marginRight: 10,
